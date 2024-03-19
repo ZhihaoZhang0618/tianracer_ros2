@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/elesheep/t110_ws/install/tianbot_core/include/**",
+        "/home/elesheep/lidar_ws/install/ltme_interfaces/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/elesheep/t110_ws/src/tianracer_ros2/tianbot_core/include/**",
+        "/home/elesheep/t110_ws/src/tianracer_ros2/tianracer_bringup/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
