@@ -1,114 +1,82 @@
-import os
-import launch
-import launch_ros
-import xacro
+from launch import LaunchDescription
 from launch_ros.actions import Node
-
-from ament_index_python.packages import get_package_share_directory
-
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
-from launch.actions import ExecuteProcess
-
+from launch_ros.substitutions import FindPackageShare
+from launch.substitutions import Command
+from rclpy.parameter import ParameterValue
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+import os
+from ament_index_python.packages import get_package_share_directory
+import xacro
 def generate_launch_description():
+    # 设置launch文件的参数
+    paused = LaunchConfiguration('paused', default='false')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='true')
+    gui = LaunchConfiguration('gui', default='true')
+    headless = LaunchConfiguration('headless', default='false')
+    debug = LaunchConfiguration('debug', default='false')
+    world = LaunchConfiguration('world', default=os.path.join(get_package_share_directory('tianracer_gazebo'), 'worlds', 'tianracer_racetrack.world'))
+    x_pos = LaunchConfiguration('x_pos', default='0')
+    y_pos = LaunchConfiguration('y_pos', default='0')
+    z_pos = LaunchConfiguration('z_pos', default='0')
+    R_pos = LaunchConfiguration('R_pos', default='0')
+    P_pos = LaunchConfiguration('P_pos', default='0')
+    Y_pos = LaunchConfiguration('Y_pos', default='1.5708')
+    # 获取gazebo_ros包的路径
+    gazebo_ros_pkg = FindPackageShare(package='gazebo_ros').find('gazebo_ros')
 
-    ld = launch.LaunchDescription()
-    ld.add_action(DeclareLaunchArgument('paused', default_value='false'))
-    ld.add_action(DeclareLaunchArgument('use_sim_time', default_value='true'))
-    ld.add_action(DeclareLaunchArgument('gui', default_value='true'))
-    ld.add_action(DeclareLaunchArgument('headless', default_value='false'))
-    ld.add_action(DeclareLaunchArgument('debug', default_value='false'))
-    ld.add_action(DeclareLaunchArgument('x_pos', default_value='0'))
-    ld.add_action(DeclareLaunchArgument('y_pos', default_value='0'))
-    ld.add_action(DeclareLaunchArgument('z_pos', default_value='0'))
-    ld.add_action(DeclareLaunchArgument('R_pos', default_value='0'))
-    ld.add_action(DeclareLaunchArgument('P_pos', default_value='0'))
-    ld.add_action(DeclareLaunchArgument('Y_pos', default_value='1.5708'))
+    # 获取tianracer_gazebo包的路径
+    tianracer_gazebo_pkg = FindPackageShare(package='tianracer_gazebo').find('tianracer_gazebo')
+
+    # 运行gazebo仿真环境
 
 
-    start_gazebo_cmd = ExecuteProcess(
-        cmd=['gazebo', '--verbose','-s', 'libgazebo_ros_init.so', '-s', 'libgazebo_ros_factory.so', os.path.join(get_package_share_directory("tianracer_gazebo"), 'worlds/tianracer_racetrack.world')],
-        output='screen')
-    ld.add_action(start_gazebo_cmd)
+    world_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            get_package_share_directory("gazebo_ros"),
+            'launch','gazebo.launch.py')),
+            launch_arguments={
+                'use_sim_time': use_sim_time,
+                'paused': paused,
+                'debug': debug,
+                'gui': gui,
+                'headless': headless,
+                'world': world
+                            }.items()
+    )
 
-    # xarco
-    xacro_file = os.path.join(get_package_share_directory("tianracer_gazebo"), 'urdf/tianracer.xacro')
-    doc = xacro.parse(open(xacro_file))
-    xacro.process_doc(doc)
-    params = {'robot_description': doc.toxml()}
-	# 启动机器人状态发布节点
-    node_robot_state_publisher = Node(
+
+
+    urdf_file = os.path.join(tianracer_gazebo_pkg, 'urdf', 'tianracer.urdf')
+    robot_description = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
+        name='robot_state_publisher',
         output='screen',
-        parameters=[params]
+        arguments=[urdf_file]
     )
-    ld.add_action(node_robot_state_publisher)
 
 
-    robot_des = Node(
+    # 在gazebo中加载机器人模型
+    urdf_spawner = Node(
         package='gazebo_ros',
         executable='spawn_entity.py',
         name='urdf_spawner',
-        arguments=['-topic', 'robot_description','-entity', 'tianracer'],
-        #    args="-urdf -model tianracer -param robot_description -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -R $(arg R_pos) -P $(arg P_pos) -Y $(arg Y_pos)" />
-        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')},
-                    {'x': LaunchConfiguration('x_pos')},
-                    {'y': LaunchConfiguration('y_pos')},
-                     {'z': LaunchConfiguration('z_pos')},
-                     {'R': LaunchConfiguration('R_pos')},
-                     {'P': LaunchConfiguration('P_pos')},
-                     {'Y': LaunchConfiguration('Y_pos')},
-                     
-
-                    ],
-        output='screen')
-
-    ld.add_action(robot_des)
+        output='screen',
+        arguments=['-file', urdf_file,'-entity', 'tianracer',
+                   '-x', x_pos,
+                   '-y', y_pos,
+                   '-z', z_pos,
+                   '-R', R_pos,
+                   '-P', P_pos,
+                   '-Y', Y_pos]
+    )
 
 
-
-    return ld
-
-        # # Load robot model description parameters
-        # Node(
-        #     package='xacro',
-        #     executable='xacro',
-        #     name='xacro',
-        #     output='screen',
-        #     arguments=[
-        #         'inorder',
-        #         LaunchConfiguration('robot_description')
-        #     ],
-        #     parameters=[
-        #         {'robot_description': FindExecutable(name='xacro') + ' --inorder $(find tianracer_gazebo)/urdf/tianracer.xacro'}
-        #     ]
-        # ),
-
-        # # Spawn robot model in Gazebo
-        # Node(
-        #     package='gazebo_ros',
-        #     executable='spawn_model',
-        #     name='urdf_spawner',
-        #     output='screen',
-        #     arguments=[
-        #         '-urdf',
-        #         '-model', 'tianracer',
-        #         '-param', 'robot_description',
-        #         '-x', LaunchConfiguration('x_pos'),
-        #         '-y', LaunchConfiguration('y_pos'),
-        #         '-z', LaunchConfiguration('z_pos'),
-        #         '-R', LaunchConfiguration('R_pos'),
-        #         '-P', LaunchConfiguration('P_pos'),
-        #         '-Y', LaunchConfiguration('Y_pos')
-        #     ]
-        # ),
-
-        # Launch the simulation joystick control
-        # Node(
-        #     package='tianracer_gazebo',
-        #     executable='keyboard_teleop.py',
-        #     name='keyboard_teleop'
-        # )
-
+    return LaunchDescription([
+        # 运行gazebo仿真环境
+        world_launch,
+        robot_description,
+        urdf_spawner
+    ])
