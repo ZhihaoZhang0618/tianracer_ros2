@@ -46,4 +46,10 @@ def generate_launch_description():
             'launch','tianracer_core.launch.py')),
         ))
 
+    ld.add_action(IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(
+            get_package_share_directory("tianracer_bringup"),
+            'launch','odom_ekf.launch.py')),
+        ))
+
     return ld
